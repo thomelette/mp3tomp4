@@ -1,6 +1,7 @@
 *~
 *#
 *.pyc
+*__pycache__*
 
 */tmp/*
 
@@ -9,6 +10,7 @@
 *.cue
 *.log
 *.jpg
+!assets/blank.jpg
 *.jpeg
 *.png
 

@@ -72,8 +72,8 @@ class FileHelper:
     # description [input] - video description data
     def WriteDescription(self, filename, description):
 
-        descr_name = "{0}/{1}-{2}.txt".format(
-            self.tmp_dir, StartTime, filename)
+        descr_name = "{0}/{1}.txt".format(
+            self.tmp_dir, filename)
 
         with open(descr_name, "w") as file:
             file.write(description)

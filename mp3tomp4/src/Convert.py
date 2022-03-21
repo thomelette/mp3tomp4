@@ -15,6 +15,12 @@ from src.helpers.FFMPEGHelper import FFMPEGHelper
 
 class Convert:
 
+    # main method for converting files
+    #
+    # fileHelper [input] - instance of src.helpers.FileHelper
+    #     (i know it's a little hokey but i need it from above to instantiate log files)
+    # args       [input] - command line parsed argument array
+    #
     def Convert(fileHelper, args):
         
         log.info("**********************************")
@@ -52,9 +58,10 @@ class Convert:
         log.debug("(to generate video descriptions, ffmpeg inputs)")
 
         video_description = ""
-        ffmpeg_filelist = ""
+        ffmpeg_audio_files = "" # contains formatted string of .mp3 files
         current_chunk_number = 1
-        ffmpeg_input_files = []
+        ffmpeg_recipe_list = [] # contains list of .ffmpeg_audio files
+        mp4_out_names = []
         timer = Timer()
 
         for dir in dirs:
@@ -71,21 +78,18 @@ class Convert:
             for k, file in enumerate(files):
                 log.debug("... ... ... " + file)
 
-                mp3 = MP3Helper(file)
+                # sanitize text for ffmpeg
+                file_sanitized = FFMPEGHelper.sanitize_text(file)
 
-                # TODO need to sanitize text for ffmpeg
-
-                # '././test-playlist/Elton John - I Guess Thats'
-                # ^^^ a bug
-                #ffmpeg_filename = file
-                #ffmpeg_filename = "./tmp/." + file
-                ffmpeg_filename = "." + file
-                # ^^ this one works w/o copy
-                # because you're invoking ffmpeg from tmp/*.ffmpeg, it "start"s there
+                # "go up a directory" (filename already has ./ prepended,
+                # and because you're eventually invoking ffmpeg from tmp/*.ffmpeg_audio,
+                # ffmpeg will 'start' in that directory)
+                ffmpeg_filename = "." + file_sanitized
 
                 # compile some metadata
+                mp3 = MP3Helper(file)
                 video_description += "{0} - {1}\n".format(timer, mp3.ToString(False))
-                ffmpeg_filelist += "file '{0}'\n".format(ffmpeg_filename)
+                ffmpeg_audio_files += "file '{0}'\n".format(ffmpeg_filename)
 
                 make_new_video = False
                 chunk_suffix = ""
@@ -136,15 +140,16 @@ class Convert:
                     log.debug("... writing out data for video render '" + video_name + "'")      
                     
                     fileHelper.WriteDescription(video_name, video_description)
-                    ffmpeg_recipe_name = fileHelper.WriteFFMPEGRecipe(video_name, ffmpeg_filelist)
+                    ffmpeg_recipe = fileHelper.WriteFFMPEGRecipe(video_name, ffmpeg_audio_files)
 
                     # build list of .ffmpeg_audio files
-                    ffmpeg_input_files.append(ffmpeg_recipe_name)
+                    ffmpeg_recipe_list.append(ffmpeg_recipe)
+                    mp4_out_names.append(video_name)
 
                     # cleanup
                     timer.Reset()
                     video_description = ""
-                    ffmpeg_filelist = ""
+                    ffmpeg_audio_files = ""
 
                     if (k != (len(files) - 1)):
                         current_chunk_number += 1
@@ -156,51 +161,33 @@ class Convert:
         log.info("Inputs parsed: ")
         log.info("... Number of directories    : {0}".format(len(dirs)))
         log.info("... Number of files          : {0}".format(len(files)))
-        log.info("... Number of videos to make : {0}".format(len(ffmpeg_input_files)))
+        log.info("... Number of videos to make : {0}".format(len(ffmpeg_recipe_list)))
         log.info("")
 
         log.debug("Begin batch processing files via ffmpeg ...")
         log.debug("")
-        ffh = FFMPEGHelper()
 
-        # ffh = FFMPEGHelper(tmp_dir, timehelper)
+        ffh = FFMPEGHelper(fileHelper.tmp_dir)
+        vid_counter = 0
 
-        
+        for vid in ffmpeg_recipe_list:
+            log.info("... rendering video {0}".format(vid_counter + 1))
+            ffh.makeMP4(vid, mp4_out_names[vid_counter])
 
-        for vid in ffmpeg_input_files:
-            # fh.SetTime(th.StartTime)
-            print(vid)
-            ffh.runMP3(vid)
+            vid_counter += 1
 
-        # TODO need to clean up tmp files 
-
-        # TODO start a timer 
-
-        #out_name = fh.CopyFileToHere(ffmpeg_input_files[0])
-        #ffh.runMP3(out_name)
-
-        # ffh.runMP3(ffmpeg_input_files[0])
+        # TODO need to clean up (some)tmp files 
 
         # TODO items (maybe addressable in FileHelper)
         #   [-] check for existing posterity m3u
         #   [-] make (new) m3u for (future) posterity 
 
-        # call_mp3tomp4
-        # for each $(some_format).txt file,
-        #   execute ffmpeg sh script
-        #   (parse.mp3.py, but with files in .txt file) -> output to $(video_name).txt
-        #   TODO here may need "playlist parameter?" - what do you title the description?
-        #   moving on... assume video is named well, assume video.txt is formatted okay
-        #
-        # if not verbose, cleanup video_input_lists
-
-        # move output files (.mp4 and .txt description) to tmp/$(timestamp)
-
-        # done! 
+        # TODO if not verbose, cleanup video_input_lists
 
 
 
 
+        log.info("")
         log.info("**********************************")
         log.info("**** ~~~~~~~ finished ~~~~~~~ ****")
         log.info("**********************************")

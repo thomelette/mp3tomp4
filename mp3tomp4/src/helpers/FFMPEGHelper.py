@@ -3,145 +3,119 @@
 # helper class for handling ffmpeg calls
 
 import subprocess
-import datetime
+from datetime import datetime
 
 import logging
 log = logging.getLogger(__name__)
 
-# TODO (very big) - port to ffmpeg-python binding
+# from src.config import StartTime
+
+# TODO (very big, potentially unnecessary task) - port to ffmpeg-python binding
 # https://github.com/kkroening/ffmpeg-python
 
 class FFMPEGHelper:
 
-    concat_mp3_cmd = \
-        "ffmpeg -nostdin -f concat -safe 0 -i {0} " + \
-            "-c copy tmp/_tmp.mp3 "
+    out_dir = ""
 
-    def Now(self):
-        return datetime.datetime.now().strftime("%y%m%d-%H%M%S")
+    # command line code for concatenating mp3s,
+    #
+    # {0} = input audio files (.ffmpeg_audio)
+    # {1} = output mp3 filename
+    concat_mp3_cmd = "ffmpeg -nostdin -f concat -safe 0 -i '{0}' -c copy '{1}.mp3'"
+    
+    # command line code for rendering mp4,
+    #
+    # {0} = input mp3 filename
+    # {1} = output mp4 filename
+    make_mp4_cmd = \
+        "ffmpeg -loop 1 -i assets/blank.jpg " + \
+        "-i '{0}.mp3' " + \
+        "-c:v libx264 -preset veryslow -tune stillimage -crf 20 -vf scale=854:480 " + \
+        "-c:a aac -b:a 320k -shortest -strict experimental " + \
+        "'{1}.mp4'"
 
+    # constructor
+    #
+    # output_dir [input] - location for output files
+    def __init__(self, output_dir):
+        self.out_dir = output_dir
 
-    def runMP3(self, input_file_ffmpeg):
+    # static method for sanitizing text, namely against ' and \ characters
+    # useful for both ffmpeg and general shell handling of filenames
+    #
+    # input_text [input] - text to sanitize
+    #
+    # [return] sanitized text
+    @staticmethod
+    def sanitize_text(input_text):
+        san1 = str(input_text).replace("\\", "\\\\")
+        san2 = str(san1).replace("'", "'\\''")
 
-        # the approach should be something like
-        # raw .sh file to > log to tmp/somewhere
-        # poll on std err *periodically* (i think it's time consuming but not sure)
+        return san2
 
+    # render mp4 from .ffmpeg_audio file
+    #
+    # input_file_ffmpeg [input] - list of mp3 files to concatenate + render
+    # output_mp4_name  [output] - filename of resulting mp4 file
+    # 
+    def makeMP4(self, input_file_ffmpeg, output_mp4_name):
+        start_time = datetime.now()
 
-        print(self.concat_mp3_cmd.format(input_file_ffmpeg))
-
-
-
-        print("that's the command ^^^")
-
-
-        print("running 1")
+        # sanitize filenames
+        input_sanitized = self.sanitize_text(input_file_ffmpeg)
+        output_sanitized = self.sanitize_text(output_mp4_name)
+        
+        log.debug("... Concatenating mp3s defined in {0}".format(input_sanitized))
+        
+        mp3_filename = self.out_dir + "/" + \
+                start_time.strftime("%y%m%d-%H%M%S") + "_tmp_vid"
+        log.debug("... Creating .mp3 file {0}".format(mp3_filename))
+        
+        mp3_cmd = self.concat_mp3_cmd.format(
+            input_sanitized, mp3_filename
+        )
+        log.debug("... Running this command in terminal:")
+        log.debug("... " + mp3_cmd)
 
         process = subprocess.Popen(
-            [self.concat_mp3_cmd.format(input_file_ffmpeg)],
+            mp3_cmd,
             stdout = subprocess.PIPE,
             stderr = subprocess.PIPE,
             shell = True
         )
 
-
-        #with open('tmp/ffmpeg2.log', 'wb') as f:
+        # (stderr because that's how ffmpeg does it >_< )
         for line in process.stderr:
             log.debug(line)
-
         process.wait()
 
-        # TODO finish ffmpeg calls (remove mp3tomp4.sh dependency)
-
-
-
-
-
+        log.debug("... done with concatenating mp3s! ")
         
-        #print(self.mp3_concat_cmd.format(input_file_ffmpeg))
+        mp4_filename = self.out_dir + "/" + output_sanitized
+        log.debug("... Creating .mp4 file {0}".format(mp4_filename))
 
-        # print(input_file_ffmpeg)
+        mp4_cmd = self.make_mp4_cmd.format(
+            mp3_filename, mp4_filename
+        )
+        log.debug("... Running this command in terminal:")
+        log.debug("... " + mp4_cmd)
 
-        # process = subprocess.Popen(
-        #     #['echo', input_file_ffmpeg],
-        #     #self.mp3_concat_cmd.format(input_file_ffmpeg),
-        #     #['ffmpeg -f concat -safe 0 -i', input_file_ffmpeg, '-c copy tempaudio.mp3'],
+        process = subprocess.Popen(
+            mp4_cmd,
+            stdout = subprocess.PIPE,
+            stderr = subprocess.PIPE,
+            shell = True
+        )
 
-        #     # TODO pass timestamp too
-        #     ['./helpers/mp3tomp4.sh', input_file_ffmpeg, 'tmp'],
-        #     stdout = subprocess.PIPE,
-        #     stderr = subprocess.PIPE
-        # )
+        # TODO this doesn't report real-time status :/ 
+        for line in process.stderr:
+            log.debug(line)
+            # TODO if line contains (timestamp identifier)
+            #     report to std out or something
+        process.wait()
 
-        #while process.poll() is None:
-        #    time.sleep(1)
-
-        #for c in iter(lambda: process.stderr.read(1), b''):
-        #    sys.stderr.buffer.write(c)
-        #     f.write(c)
-
-        print('done')
-
-        # this works(?) for "real time" output
-        # but i may need to monitor stderr (see line below)
-        #
-        # while True:
-        #     output = process.stdout.readline()
-        #     if len(output) == 0 and process.poll() is not None:
-        #         break
-        #     if output:
-        #         print(output.strip())
-        #     rc = process.poll()
-
-
-        # # i think there's a bug here where it hangs since
-        # # std err is empty
-
-        # while True:
-        #     out_std = process.stdout.readline()
-        #     out_err = process.stderr.readline()
-
-        #     if len(out_std) == 0 and process.poll() is not None:
-        #         break
-
-        #     if out_std: 
-        #         print("STD: ")
-        #         print(out_std.strip())
-
-        #     if out_err:
-        #         print("ERR: ")
-        #         print(out_err.strip())
-            
-        #     rc = process.poll()
-
-
+        time_delta = datetime.now() - start_time
+        log.info("... Video finished! Rendered in {0} minutes"
+            .format(time_delta.total_seconds() / 60.0))
         
-
-        # old fashioned way
-        # stdout, stderr = process.communicate()
-
-        # TODO okay so stderr has ffmpeg output... 
-        # #            move that to my generated .log file
-        #print(stderr)
-
-        # return rc
-
-        # copy .ffmpeg file to ./ 
-
-        # render tmp audio file
-
-        # render mp4 file
-
-        # remove tmp audio file
-        # remove .ffmpeg file from ./
-
-
-
-
-#     import subprocess
-# process = subprocess.Popen(['echo', 'More output'],
-#                      stdout=subprocess.PIPE, 
-#                      stderr=subprocess.PIPE)
-# stdout, stderr = process.communicate()
-# stdout, stderr
 
