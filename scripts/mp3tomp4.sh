@@ -19,19 +19,12 @@ done
 echo "** files to process... ** "
 cat templist.txt
 
-# randomize files...
-num_files=$(ls | grep '\.mp3' | wc -l)
-#rand_sequence=seq $(num_files) | shuf
-
-# for each mp3
-#   grab metadata
-
 echo "** concatenating mp3s... **"
 ffmpeg -f concat -safe 0 -i templist.txt -c copy tempaudio.mp3
 
 echo "** streaming to video... **"
 rm -f $1.mp4
-
+ffmpeg -loop 1 -i ../blank.jpg -i tempaudio.mp3 -c:v libx264 -preset veryslow -tune stillimage -crf 20 -vf scale=854:480 -c:a aac -b:a 320k -shortest -strict experimental $1.mp4
 
 # preset = speed vs. compression (slower = smaller)
 # tune = stillimage
@@ -53,7 +46,6 @@ rm -f $1.mp4
 # the settings below (29 nov 2021) add a wee bit of compression on top of mp3s...
 # will need some more tuning... but it's an okay start!!
 
-ffmpeg -loop 1 -i ../blank.jpg -i tempaudio.mp3 -c:v libx264 -preset veryslow -tune stillimage -crf 20 -vf scale=854:480 -c:a aac -b:a 320k -shortest -strict experimental $1.mp4
 
 # 2022 jan 20
 # c:v libx264 -preset veryslow -tune stillimage -crf 20 -codec: copy -shortest -strict experimental $1.mp4
@@ -62,6 +54,7 @@ ffmpeg -loop 1 -i ../blank.jpg -i tempaudio.mp3 -c:v libx264 -preset veryslow -t
 # replace -b:a with -vbr (scale 1-5) for VBR audio. speed is about 6.6x
 # vimeo recommends 320kbs CBR though (runs closer to 7.0x, but filesize increases)
 
+# TODO may improve speed by using pre-rendered "black" 1s video and looping that
 
 echo "** DONE! rendered $1.mp4**"
 

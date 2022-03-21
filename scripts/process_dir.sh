@@ -14,6 +14,7 @@ echo "$1"
 # break directory name by spaces for simplicity
 splitname=(${1})
 videofilename=${splitname[0]}_${splitname[1]}
+# TODO this will break if folder has no spaces
 
 # render video
 ../mp3tomp4.sh $videofilename
