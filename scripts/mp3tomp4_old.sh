@@ -2,35 +2,27 @@
 
 # batch convert mp3s to mp4, then stitch them together
 
-# cleanup any temp files
-rm -rf templist.txt
-rm -rf tempaudio.mp3
-
 # make list of mp3s
+rm -rf templist.txt
 for filename in *.mp3; do
-    # filename=$(printf '%q' "$filename")
-
-    # break single quote ' marks
-    # because of masochism
-    filename=${filename//\'/\'\\\'\'}
     echo "file '$filename'" >> templist.txt
 done
-
 echo "** files to process... ** "
 cat templist.txt
 
 # randomize files...
-num_files=$(ls | grep '\.mp3' | wc -l)
-#rand_sequence=seq $(num_files) | shuf
+num_files = $(ls | grep '\.mp3' | wc -l)
+# rand_sequence = seq $(num_files) | shuf
 
 # for each mp3
 #   grab metadata
 
 echo "** concatenating mp3s... **"
+rm -rf tempaudio.mp3
 ffmpeg -f concat -safe 0 -i templist.txt -c copy tempaudio.mp3
 
 echo "** streaming to video... **"
-rm -f $1.mp4
+rm -f output1.mp4
 
 
 # preset = speed vs. compression (slower = smaller)
@@ -53,23 +45,14 @@ rm -f $1.mp4
 # the settings below (29 nov 2021) add a wee bit of compression on top of mp3s...
 # will need some more tuning... but it's an okay start!!
 
-ffmpeg -loop 1 -i ../blank.jpg -i tempaudio.mp3 -c:v libx264 -preset veryslow -tune stillimage -crf 20 -vf scale=854:480 -c:a aac -b:a 320k -shortest -strict experimental $1.mp4
-
-# 2022 jan 20
-# c:v libx264 -preset veryslow -tune stillimage -crf 20 -codec: copy -shortest -strict experimental $1.mp4
-# EXTREMELY fast but has problems uploading to vimeo
-
-# replace -b:a with -vbr (scale 1-5) for VBR audio. speed is about 6.6x
-# vimeo recommends 320kbs CBR though (runs closer to 7.0x, but filesize increases)
+ffmpeg -loop 1 -i blank.jpg -i tempaudio.mp3 -c:v libx264 -preset veryslow -tune stillimage -crf 30 -vf scale=854:480 -c:a aac -b:a 128k -shortest -strict experimental output1.mp4
 
 
-echo "** DONE! rendered $1.mp4**"
+echo "** DONE! **"
 
 echo "***********************************"
 echo "Copy to vimeo" 
 echo "***********************************"
-rm -rf tempaudio.mp3
-rm -rf output_descr.txt
-python3 ../parse_mp3.py | tee -a output_descr.txt
+python3 ./parse_mp3.py | tee -a vimeo_descr.txt
 
 echo "***********************************"

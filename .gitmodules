@@ -1,0 +1,3 @@
+[submodule "savify"]
+	path = savify
+	url = https://github.com/thomelette/savify.git
